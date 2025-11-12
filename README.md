@@ -54,3 +54,22 @@ Flowtify uses a custom design system with:
 ## License
 
 MIT
+
+
+## AI Features (Optional)
+
+Flowtify can use Google's Gemini AI to generate personalized music insights in the DIY Wrapped section.
+
+### Enable AI:
+1. Set `NEXT_PUBLIC_ENABLE_AI=true` in your `.env.local`
+2. Get a free Gemini API Key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+3. Add it to your `.env.local`:
+   ```
+   NEXT_PUBLIC_ENABLE_AI=true
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+### Disable AI:
+Set `NEXT_PUBLIC_ENABLE_AI=false` in your `.env.local` to use default insights instead.
+
+The free tier includes 15 requests per minute, which is more than enough for this app!

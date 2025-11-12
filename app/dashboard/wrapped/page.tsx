@@ -19,11 +19,60 @@ export default function WrappedPage() {
     }
 
     Promise.all([
-      getTopTracks(token, 'long_term', 5),
-      getTopArtists(token, 'long_term', 5)
+      getTopTracks(token, 'short_term', 10),
+      getTopArtists(token, 'short_term', 10)
     ])
-      .then(([tracks, artists]) => {
-        setData({ tracks: tracks.items, artists: artists.items });
+      .then(async ([tracks, artists]) => {
+        // Prepare detailed data for AI
+        const topTracksWithArtists = tracks.items.slice(0, 5).map((t: any) => ({
+          name: t.name,
+          artist: t.artists[0].name,
+          popularity: t.popularity
+        }));
+        
+        const topArtistsWithGenres = artists.items.slice(0, 5).map((a: any) => ({
+          name: a.name,
+          genres: a.genres?.slice(0, 3) || []
+        }));
+        
+        const allGenres = [...new Set(artists.items.flatMap((a: any) => a.genres || []))];
+        
+        setData({ 
+          tracks: tracks.items, 
+          artists: artists.items,
+          aiInsight: 'Generating your personalized insight...'
+        });
+
+        // Generate AI insight with detailed data (if enabled)
+        const aiEnabled = process.env.NEXT_PUBLIC_ENABLE_AI === 'true';
+        
+        if (aiEnabled) {
+          try {
+            const response = await fetch('/api/generate-insight', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tracks: topTracksWithArtists,
+                artists: topArtistsWithGenres,
+                genres: allGenres.slice(0, 8),
+                period: 'last month'
+              })
+            });
+            
+            const { insight } = await response.json();
+            setData((prev: any) => ({ ...prev, aiInsight: insight }));
+          } catch {
+            setData((prev: any) => ({ 
+              ...prev, 
+              aiInsight: 'Your music taste this month is unique and wonderful! Keep discovering new sounds.' 
+            }));
+          }
+        } else {
+          setData((prev: any) => ({ 
+            ...prev, 
+            aiInsight: 'Your music taste this month is unique and wonderful! Keep discovering new sounds.' 
+          }));
+        }
       })
       .catch(() => router.push('/'))
       .finally(() => setLoading(false));
@@ -39,25 +88,34 @@ export default function WrappedPage() {
 
   const slides = [
     {
-      title: 'Your Top Artist',
+      title: 'This Month\'s Top Artist',
       content: data?.artists[0]?.name,
-      subtitle: 'You really love this one',
+      subtitle: 'Your most played artist',
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     },
     {
-      title: 'Your Top Track',
+      title: 'This Month\'s Top Track',
       content: data?.tracks[0]?.name,
       subtitle: `by ${data?.tracks[0]?.artists[0]?.name}`,
       gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
     },
     {
+      title: 'Great!',
+      content: data?.aiInsight || 'Generating your personalized insight...',
+      subtitle: 'Powered by Gemini AI',
+      gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      isAI: true
+    },
+    {
       title: 'Top 5 Artists',
-      content: data?.artists.map((a: any, i: number) => `${i + 1}. ${a.name}`).join('\n'),
+      content: data?.artists.slice(0, 5).map((a: any, i: number) => `${i + 1}. ${a.name}`).join('\n'),
+      subtitle: 'Last 4 weeks',
       gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
     },
     {
       title: 'Top 5 Tracks',
-      content: data?.tracks.map((t: any, i: number) => `${i + 1}. ${t.name}`).join('\n'),
+      content: data?.tracks.slice(0, 5).map((t: any, i: number) => `${i + 1}. ${t.name}`).join('\n'),
+      subtitle: 'Last 4 weeks',
       gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
     }
   ];
@@ -78,7 +136,7 @@ export default function WrappedPage() {
           style={{ background: slides[currentSlide].gradient }}
         >
           <h2 className="text-4xl font-bold mb-4">{slides[currentSlide].title}</h2>
-          <div className="text-2xl font-medium mb-2 whitespace-pre-line">
+          <div className={`${slides[currentSlide].isAI ? 'text-xl' : 'text-2xl'} font-medium mb-2 whitespace-pre-line max-w-lg`}>
             {slides[currentSlide].content}
           </div>
           {slides[currentSlide].subtitle && (
