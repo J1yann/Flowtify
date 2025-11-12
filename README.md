@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Flowtify
 
-## Getting Started
+A modern, minimal web app that transforms Spotify listening data into elegant, shareable visual artifacts.
 
-First, run the development server:
+## Features
+
+- **Weekly Listening Stats**: Mini-Wrapped style cards showing your recent listening patterns
+- **Spotify Receipt**: Receiptify-inspired printable receipt of your top tracks and artists
+- **DIY Mini-Wrapped**: Customizable year-in-review with gradient-rich, typography-driven slides
+
+## Tech Stack
+
+- Next.js 16 (App Router)
+- React 19
+- Tailwind CSS v4
+- Bun v1.2+
+- Spotify Web API (OAuth 2.0 PKCE)
+
+## Setup
+
+1. Create a Spotify App at [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Add `http://localhost:3000/callback` to your app's Redirect URIs
+3. Copy `.env.local.example` to `.env.local` and fill in your credentials:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+NEXT_PUBLIC_SPOTIFY_CLIENT_ID=your_client_id
+NEXT_PUBLIC_SPOTIFY_REDIRECT_URI=http://localhost:3000/callback
+```
+
+4. Install dependencies and run:
+
+```bash
+bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Design System
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Flowtify uses a custom design system with:
+- Glassmorphism/soft UI aesthetic
+- Dark mode first with light mode toggle
+- Fluid typography and responsive layouts
+- Spring-based micro-interactions
+- Performance-optimized (target: Lighthouse ≥95)
 
-## Learn More
+## Performance Budget
 
-To learn more about Next.js, take a look at the following resources:
+- TTI < 1.8s on 3G
+- Initial bundle < 170KB (gzipped)
+- Mobile-first, touch-friendly (≥48px tap targets)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

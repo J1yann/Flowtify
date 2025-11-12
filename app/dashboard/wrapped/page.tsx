@@ -1,0 +1,133 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getTopTracks, getTopArtists } from '@/lib/spotify-api';
+
+export default function WrappedPage() {
+  const router = useRouter();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    const token = localStorage.getItem('spotify_access_token');
+    
+    if (!token) {
+      router.push('/');
+      return;
+    }
+
+    Promise.all([
+      getTopTracks(token, 'long_term', 5),
+      getTopArtists(token, 'long_term', 5)
+    ])
+      .then(([tracks, artists]) => {
+        setData({ tracks: tracks.items, artists: artists.items });
+      })
+      .catch(() => router.push('/'))
+      .finally(() => setLoading(false));
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-[var(--accent-primary)] border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  const slides = [
+    {
+      title: 'Your Top Artist',
+      content: data?.artists[0]?.name,
+      subtitle: 'You really love this one',
+      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    },
+    {
+      title: 'Your Top Track',
+      content: data?.tracks[0]?.name,
+      subtitle: `by ${data?.tracks[0]?.artists[0]?.name}`,
+      gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+    },
+    {
+      title: 'Top 5 Artists',
+      content: data?.artists.map((a: any, i: number) => `${i + 1}. ${a.name}`).join('\n'),
+      gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+    },
+    {
+      title: 'Top 5 Tracks',
+      content: data?.tracks.map((t: any, i: number) => `${i + 1}. ${t.name}`).join('\n'),
+      gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+    }
+  ];
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <button
+        onClick={() => router.push('/dashboard')}
+        className="absolute top-4 left-4 text-sm px-4 py-2 rounded-full"
+        style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)', background: 'var(--surface)' }}
+      >
+        ← Back
+      </button>
+
+      <div className="max-w-2xl w-full">
+        <div 
+          className="aspect-square rounded-3xl p-12 flex flex-col items-center justify-center text-center text-white transition-all duration-500"
+          style={{ background: slides[currentSlide].gradient }}
+        >
+          <h2 className="text-4xl font-bold mb-4">{slides[currentSlide].title}</h2>
+          <div className="text-2xl font-medium mb-2 whitespace-pre-line">
+            {slides[currentSlide].content}
+          </div>
+          {slides[currentSlide].subtitle && (
+            <p className="text-lg opacity-80">{slides[currentSlide].subtitle}</p>
+          )}
+        </div>
+
+        <div className="flex justify-center gap-2 mt-6">
+          {slides.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrentSlide(i)}
+              className="w-2 h-2 rounded-full transition-all"
+              style={{ 
+                background: i === currentSlide ? 'var(--accent-primary)' : 'var(--border)',
+                width: i === currentSlide ? '2rem' : '0.5rem'
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="flex justify-between mt-6">
+          <button
+            onClick={() => setCurrentSlide(Math.max(0, currentSlide - 1))}
+            disabled={currentSlide === 0}
+            className="px-6 py-3 rounded-full"
+            style={{ 
+              background: 'var(--surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+              opacity: currentSlide === 0 ? 0.5 : 1
+            }}
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => setCurrentSlide(Math.min(slides.length - 1, currentSlide + 1))}
+            disabled={currentSlide === slides.length - 1}
+            className="px-6 py-3 rounded-full"
+            style={{ 
+              background: 'var(--accent-primary)',
+              color: 'white',
+              opacity: currentSlide === slides.length - 1 ? 0.5 : 1
+            }}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
