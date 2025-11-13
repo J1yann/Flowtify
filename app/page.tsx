@@ -9,7 +9,7 @@ export default function Home() {
             Flowtify
           </h1>
           <p className="text-xl" style={{ color: 'var(--text-secondary)' }}>
-            Transform your Spotify listening data into elegant, shareable visual artifacts
+            Get easy-to-share visuals from your Spotify activity and dig into the stats behind what you listen to.
           </p>
         </div>
 

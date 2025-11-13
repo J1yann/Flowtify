@@ -36,10 +36,37 @@ export default function ReceiptPage() {
       .finally(() => setLoading(false));
   }, [timeRange]);
 
-  const handleExport = () => {
+  const handleDownload = async () => {
     if (!receiptRef.current) return;
     
-    // Simple share functionality
+    try {
+      // Use html2canvas to capture the receipt
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(receiptRef.current, {
+        backgroundColor: '#f5f5dc',
+        scale: 2, // Higher quality
+        useCORS: true, // Allow cross-origin images
+        allowTaint: true,
+        logging: false,
+      });
+      
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `spotify-receipt-${timeRange}-${Date.now()}.png`;
+        link.click();
+        URL.revokeObjectURL(url);
+      });
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download receipt. Please try again.');
+    }
+  };
+
+  const handleShare = () => {
     if (navigator.share) {
       navigator.share({
         title: 'My Spotify Receipt',
@@ -138,14 +165,23 @@ export default function ReceiptPage() {
           </div>
         </CrumpledPaper>
 
-        <div className="flex justify-center mt-6">
+        <div className="flex justify-center gap-4 mt-6">
           <button
-            onClick={handleExport}
-            className="px-6 py-3 rounded-full font-medium"
+            onClick={handleDownload}
+            className="px-6 py-3 rounded-full font-medium transition-all hover:scale-105"
             style={{ background: 'var(--accent-primary)', color: 'white' }}
           >
-            Share Receipt
+            📥 Download Receipt
           </button>
+          {navigator.share && (
+            <button
+              onClick={handleShare}
+              className="px-6 py-3 rounded-full font-medium transition-all hover:scale-105"
+              style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            >
+              🔗 Share
+            </button>
+          )}
         </div>
       </div>
     </div>
