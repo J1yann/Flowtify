@@ -91,7 +91,7 @@ export default function WrappedPage() {
           genres: a.genres?.slice(0, 3) || []
         }));
         
-        const allGenres = [...new Set(artists.items.flatMap((a: any) => a.genres || []))];
+        const allGenres = [...new Set(artists.items.flatMap((a: any) => a.genres || []))] as string[];
         
         setData({ 
           tracks: tracks.items, 

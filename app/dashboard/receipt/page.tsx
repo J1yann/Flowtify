@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTopTracks, getTopArtists } from '@/lib/spotify-api';
+import { getTopTracks, getTopArtists, getUserProfile } from '@/lib/spotify-api';
 import CrumpledPaper from '@/components/crumpled-paper';
 
 export default function ReceiptPage() {
@@ -11,6 +11,7 @@ export default function ReceiptPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'short_term' | 'medium_term' | 'long_term'>('medium_term');
+  const [userName, setUserName] = useState<string>('');
 
   useEffect(() => {
     const token = localStorage.getItem('spotify_access_token');
@@ -24,13 +25,15 @@ export default function ReceiptPage() {
     
     Promise.all([
       getTopTracks(token, timeRange, 10),
-      getTopArtists(token, timeRange, 5)
+      getTopArtists(token, timeRange, 5),
+      getUserProfile(token)
     ])
-      .then(([tracks, artists]) => {
+      .then(([tracks, artists, profile]) => {
         setData({ 
           tracks: tracks.items, 
           artists: artists.items
         });
+        setUserName(profile.display_name || profile.id || 'user');
       })
       .catch(() => router.push('/'))
       .finally(() => setLoading(false));
@@ -43,10 +46,10 @@ export default function ReceiptPage() {
       // Use html2canvas to capture the receipt
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(receiptRef.current, {
-        backgroundColor: '#f5f5dc',
-        scale: 2, // Higher quality
+        backgroundColor: null,
+        scale: 1.5, // Balanced quality and file size
         useCORS: true, // Allow cross-origin images
-        allowTaint: true,
+        allowTaint: false,
         logging: false,
       });
       
@@ -56,7 +59,9 @@ export default function ReceiptPage() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `spotify-receipt-${timeRange}-${Date.now()}.png`;
+        const timestamp = Date.now();
+        const sanitizedUserName = userName.replace(/[^a-zA-Z0-9]/g, '-');
+        link.download = `flowtify-${sanitizedUserName}-${timestamp}.png`;
         link.click();
         URL.revokeObjectURL(url);
       });
@@ -117,10 +122,11 @@ export default function ReceiptPage() {
           ))}
         </div>
 
-        <CrumpledPaper>
-          <div ref={receiptRef} className="p-8 font-mono text-sm"
-            style={{ color: '#000' }}
-          >
+        <div ref={receiptRef}>
+          <CrumpledPaper>
+            <div className="p-8 font-mono text-sm"
+              style={{ color: '#000' }}
+            >
               <div className="text-center mb-6 pb-4 border-b-2 border-dashed border-black">
                 <div className="text-2xl font-bold mb-2 tracking-wider">SPOTIFY RECEIPT</div>
                 <div className="text-xs">━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
@@ -162,8 +168,9 @@ export default function ReceiptPage() {
                 </div>
                 <div className="mt-2">━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
               </div>
-          </div>
-        </CrumpledPaper>
+            </div>
+          </CrumpledPaper>
+        </div>
 
         <div className="flex justify-center gap-4 mt-6">
           <button
@@ -173,7 +180,7 @@ export default function ReceiptPage() {
           >
             📥 Download Receipt
           </button>
-          {typeof navigator !== 'undefined' && navigator.share && (
+          {typeof window !== 'undefined' && 'share' in navigator && (
             <button
               onClick={handleShare}
               className="px-6 py-3 rounded-full font-medium transition-all hover:scale-105"
