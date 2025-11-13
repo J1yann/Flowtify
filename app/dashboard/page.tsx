@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [showUniqueModal, setShowUniqueModal] = useState(false);
   const [recentTracks, setRecentTracks] = useState<any[]>([]);
   const [uniqueTracksList, setUniqueTracksList] = useState<any[]>([]);
+  const [aiMood, setAiMood] = useState<string>('Analyzing your vibe...');
 
   useEffect(() => {
     const token = localStorage.getItem('spotify_access_token');
@@ -30,13 +31,21 @@ export default function DashboardPage() {
       import('@/lib/spotify-api').then(m => m.getRecentlyPlayed(token, 50))
     ])
       .then(([userData, topTracks, topArtists, recentlyPlayed]) => {
-        const recentItems = recentlyPlayed.items;
-        const topTrackId = topTracks.items[0]?.id;
-        const topTrackPlayCount = recentItems.filter((item: any) => item.track.id === topTrackId).length;
+        // Filter to only today's plays (midnight to midnight)
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
         
-        // Get unique tracks with their play counts
+        const todayItems = recentlyPlayed.items.filter((item: any) => {
+          const playedAt = new Date(item.played_at);
+          return playedAt >= todayStart;
+        });
+        
+        const topTrackId = topTracks.items[0]?.id;
+        const topTrackPlayCount = todayItems.filter((item: any) => item.track.id === topTrackId).length;
+        
+        // Get unique tracks with their play counts (today only)
         const trackMap = new Map();
-        recentItems.forEach((item: any) => {
+        todayItems.forEach((item: any) => {
           const track = item.track;
           if (trackMap.has(track.id)) {
             trackMap.get(track.id).playCount++;
@@ -46,19 +55,96 @@ export default function DashboardPage() {
         });
         
         setUser(userData);
-        setRecentTracks(recentItems.slice(0, 20).map((i: any) => i.track));
+        setRecentTracks(todayItems.slice(0, 20).map((i: any) => i.track));
         setUniqueTracksList(Array.from(trackMap.values()));
         setStats({
           topTrack: topTracks.items[0],
           topTrackPlayCount,
           topArtist: topArtists.items[0],
-          totalPlays: recentItems.length,
+          totalPlays: todayItems.length,
           uniqueTracks: trackMap.size
         });
+
+        // Fetch AI mood with caching (3 hours)
+        fetchAIMood(todayItems, topArtists.items);
       })
       .catch(() => router.push('/'))
       .finally(() => setLoading(false));
   }, [router]);
+
+  const fetchAIMood = async (todayItems: any[], topArtists: any[]) => {
+    try {
+      // Check cache first
+      const cached = localStorage.getItem('aiMoodCache');
+      if (cached) {
+        const { mood, timestamp } = JSON.parse(cached);
+        const threeHoursAgo = Date.now() - (3 * 60 * 60 * 1000); // 3 hours in ms
+        
+        if (timestamp > threeHoursAgo) {
+          console.log('Using cached mood:', mood);
+          setAiMood(mood);
+          return;
+        }
+      }
+
+      // No valid cache, fetch from AI
+      if (todayItems.length === 0) {
+        setAiMood('Start listening to discover your mood! 🎵');
+        return;
+      }
+
+      console.log('Fetching AI mood for', todayItems.length, 'tracks');
+
+      // Prepare tracks with genre info from artists
+      const tracksWithGenres = todayItems.slice(0, 20).map((item: any) => {
+        const track = item.track;
+        // Try to match artist genres
+        const artistGenres = topArtists
+          .filter((artist: any) => track.artists?.some((ta: any) => ta.name === artist.name))
+          .flatMap((artist: any) => artist.genres || []);
+        
+        return {
+          name: track.name,
+          artist: track.artists?.[0]?.name || 'Unknown',
+          genres: artistGenres.slice(0, 3) // Top 3 genres
+        };
+      });
+
+      console.log('Sending tracks to AI:', tracksWithGenres);
+
+      const response = await fetch('/api/detect-mood', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tracks: tracksWithGenres })
+      });
+
+      if (!response.ok) {
+        console.error('API response not OK:', response.status);
+      }
+
+      const data = await response.json();
+      console.log('AI response:', data);
+      
+      const mood = data.mood || 'Vibing with great music! 🎵';
+      const isAIGenerated = data.isAIGenerated;
+      
+      setAiMood(mood);
+      
+      // Only cache if it's actually AI-generated (not fallback)
+      if (isAIGenerated) {
+        console.log('Caching AI-generated mood');
+        localStorage.setItem('aiMoodCache', JSON.stringify({
+          mood,
+          timestamp: Date.now()
+        }));
+      } else {
+        console.log('Not caching fallback text');
+      }
+    } catch (error) {
+      console.error('Error fetching AI mood:', error);
+      setAiMood('Vibing with great music! 🎵');
+    }
+  };
 
   if (loading) {
     return (
@@ -73,13 +159,24 @@ export default function DashboardPage() {
       {/* Animated background gradient blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div 
-          className="absolute -top-40 -right-40 w-96 h-96 rounded-full opacity-20 blur-3xl animate-pulse"
-          style={{ background: 'var(--accent-primary)', animationDuration: '4s' }}
+          className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl animate-pulse-glow"
+          style={{ background: 'var(--accent-primary)' }}
         />
         <div 
-          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full opacity-20 blur-3xl animate-pulse"
-          style={{ background: 'var(--accent-secondary)', animationDuration: '6s', animationDelay: '1s' }}
+          className="absolute top-1/3 left-1/4 w-64 h-64 rounded-full blur-3xl animate-pulse-glow"
+          style={{ background: 'var(--accent-tertiary)', animationDelay: '2s' }}
         />
+        <div 
+          className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl animate-pulse-glow"
+          style={{ background: 'var(--accent-secondary)', animationDelay: '1s' }}
+        />
+        
+        {/* Floating music notes */}
+        <div className="absolute top-20 left-[10%] text-4xl opacity-20 animate-float">🎵</div>
+        <div className="absolute top-40 right-[15%] text-3xl opacity-15 animate-float-delayed">🎶</div>
+        <div className="absolute bottom-32 left-[20%] text-5xl opacity-10 animate-float">🎸</div>
+        <div className="absolute top-1/2 right-[25%] text-4xl opacity-15 animate-float-delayed">🎧</div>
+        <div className="absolute bottom-20 right-[30%] text-3xl opacity-20 animate-float">✨</div>
       </div>
 
       <nav className="relative border-b backdrop-blur-xl" style={{ borderColor: 'var(--border)', background: 'var(--surface-overlay)' }}>
@@ -111,27 +208,27 @@ export default function DashboardPage() {
       </nav>
 
       <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="mb-8">
-          <h2 className="text-3xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-            Welcome back, {user?.display_name?.split(' ')[0]} 👋
+        <div className="mb-8 animate-bounce-in">
+          <h2 className="text-4xl font-bold mb-3 bg-gradient-to-r from-[var(--accent-primary)] via-[var(--accent-tertiary)] to-[var(--accent-secondary)] bg-clip-text text-transparent">
+            Hey {user?.display_name?.split(' ')[0]}! 👋✨
           </h2>
-          <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
-            Here's what you've been listening to
+          <p className="text-xl" style={{ color: 'var(--text-secondary)' }}>
+            Your music taste is looking fire today 🔥
           </p>
         </div>
 
         {/* Live stats - moved to top */}
         {stats && (
-          <div className="mb-12 space-y-6">
-            <h3 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Your Recent Vibes 🎧
+          <div className="mb-12 space-y-6 animate-bounce-in" style={{ animationDelay: '0.1s' }}>
+            <h3 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              Today's Vibes 🎧💫
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Top Track Card */}
-              <div className="group p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:scale-105" style={{ 
-                background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-                boxShadow: '0 8px 24px var(--shadow)'
+              <div className="group p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.03] hover:rotate-1 cursor-pointer" style={{ 
+                background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-tertiary), var(--accent-secondary))',
+                boxShadow: '0 12px 32px var(--shadow)'
               }}>
                 <div className="flex items-start gap-4">
                   {stats.topTrack?.album?.images?.[0] && (
@@ -159,10 +256,10 @@ export default function DashboardPage() {
               </div>
 
               {/* Top Artist Card */}
-              <div className="group p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:scale-105" style={{ 
+              <div className="group p-6 rounded-2xl backdrop-blur-xl transition-all duration-300 hover:scale-[1.03] hover:-rotate-1 cursor-pointer" style={{ 
                 background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                boxShadow: '0 8px 24px var(--shadow)'
+                border: '2px solid var(--border)',
+                boxShadow: '0 12px 32px var(--shadow)'
               }}>
                 <div className="flex items-start gap-4">
                   {stats.topArtist?.images?.[0] && (
@@ -191,18 +288,18 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <button
                 onClick={() => setShowRecentModal(true)}
-                className="p-6 rounded-2xl text-center backdrop-blur-xl transition-all hover:scale-105 cursor-pointer" 
+                className="p-6 rounded-2xl text-center backdrop-blur-xl transition-all hover:scale-110 hover:-translate-y-1 cursor-pointer" 
                 style={{ 
                   background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  boxShadow: '0 4px 16px var(--shadow)'
+                  border: '2px solid var(--border)',
+                  boxShadow: '0 8px 24px var(--shadow)'
                 }}
               >
                 <div className="text-3xl font-bold mb-1" style={{ color: 'var(--accent-primary)' }}>
                   {stats.totalPlays}
                 </div>
                 <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Recent Plays
+                  Today's Plays
                 </div>
                 <div className="text-xs mt-1" style={{ color: 'var(--accent-primary)' }}>
                   Click to view
@@ -211,11 +308,11 @@ export default function DashboardPage() {
 
               <button
                 onClick={() => setShowUniqueModal(true)}
-                className="p-6 rounded-2xl text-center backdrop-blur-xl transition-all hover:scale-105 cursor-pointer" 
+                className="p-6 rounded-2xl text-center backdrop-blur-xl transition-all hover:scale-110 hover:-translate-y-1 cursor-pointer" 
                 style={{ 
                   background: 'var(--surface)',
-                  border: '1px solid var(--border)',
-                  boxShadow: '0 4px 16px var(--shadow)'
+                  border: '2px solid var(--border)',
+                  boxShadow: '0 8px 24px var(--shadow)'
                 }}
               >
                 <div className="text-3xl font-bold mb-1" style={{ color: 'var(--accent-primary)' }}>
@@ -229,52 +326,41 @@ export default function DashboardPage() {
                 </div>
               </button>
 
-              <div className="p-6 rounded-2xl text-center backdrop-blur-xl" style={{ 
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                boxShadow: '0 4px 16px var(--shadow)'
+              <div className="p-6 rounded-2xl backdrop-blur-xl transition-all hover:scale-105 hover:-translate-y-1 col-span-2 overflow-hidden flex flex-col items-center justify-center" style={{ 
+                background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-tertiary))',
+                boxShadow: '0 8px 24px var(--shadow)',
+                minHeight: '120px'
               }}>
-                <div className="text-3xl font-bold mb-1" style={{ color: 'var(--accent-primary)' }}>
-                  🎵
+                <div className="text-xs font-medium mb-2 opacity-90" style={{ color: 'white' }}>
+                  Let me guess...
                 </div>
-                <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Music Lover
+                <div className="text-sm font-semibold leading-relaxed text-center" style={{ color: 'white' }}>
+                  {aiMood}
                 </div>
               </div>
 
-              <div className="p-6 rounded-2xl text-center backdrop-blur-xl" style={{ 
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                boxShadow: '0 4px 16px var(--shadow)'
-              }}>
-                <div className="text-3xl font-bold mb-1" style={{ color: 'var(--accent-primary)' }}>
-                  ✨
-                </div>
-                <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  Active Listener
-                </div>
-              </div>
+
             </div>
           </div>
         )}
 
-        <div className="space-y-6">
-          <h3 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Create Something 🎨
+        <div className="space-y-6 animate-bounce-in" style={{ animationDelay: '0.2s' }}>
+          <h3 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            Create Something Cool!
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <button
             onClick={() => router.push('/dashboard/weekly-stats')}
-            className="group relative p-8 rounded-2xl text-left transition-all duration-300 hover:-translate-y-2 hover:scale-105 overflow-hidden"
+            className="group relative p-8 rounded-2xl text-left transition-all duration-300 hover:-translate-y-3 hover:scale-[1.02] hover:rotate-1 overflow-hidden"
             style={{ 
               background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              boxShadow: '0 4px 16px var(--shadow)'
+              border: '2px solid var(--border)',
+              boxShadow: '0 8px 24px var(--shadow)'
             }}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
-              style={{ background: 'linear-gradient(135deg, rgba(155, 138, 251, 0.1), rgba(200, 191, 255, 0.1))' }}
+              style={{ background: 'linear-gradient(135deg, rgba(255, 107, 157, 0.15), rgba(199, 125, 255, 0.15))' }}
             />
             <div className="relative">
               <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">📊</div>
@@ -292,15 +378,15 @@ export default function DashboardPage() {
 
           <button
             onClick={() => router.push('/dashboard/receipt')}
-            className="group relative p-8 rounded-2xl text-left transition-all duration-300 hover:-translate-y-2 hover:scale-105 overflow-hidden"
+            className="group relative p-8 rounded-2xl text-left transition-all duration-300 hover:-translate-y-3 hover:scale-[1.02] overflow-hidden"
             style={{ 
               background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              boxShadow: '0 4px 16px var(--shadow)'
+              border: '2px solid var(--border)',
+              boxShadow: '0 8px 24px var(--shadow)'
             }}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
-              style={{ background: 'linear-gradient(135deg, rgba(155, 138, 251, 0.1), rgba(200, 191, 255, 0.1))' }}
+              style={{ background: 'linear-gradient(135deg, rgba(255, 160, 122, 0.15), rgba(255, 107, 157, 0.15))' }}
             />
             <div className="relative">
               <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">🧾</div>
@@ -318,15 +404,15 @@ export default function DashboardPage() {
 
           <button
             onClick={() => router.push('/dashboard/wrapped')}
-            className="group relative p-8 rounded-2xl text-left transition-all duration-300 hover:-translate-y-2 hover:scale-105 overflow-hidden"
+            className="group relative p-8 rounded-2xl text-left transition-all duration-300 hover:-translate-y-3 hover:scale-[1.02] hover:-rotate-1 overflow-hidden"
             style={{ 
               background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              boxShadow: '0 4px 16px var(--shadow)'
+              border: '2px solid var(--border)',
+              boxShadow: '0 8px 24px var(--shadow)'
             }}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
-              style={{ background: 'linear-gradient(135deg, rgba(155, 138, 251, 0.1), rgba(200, 191, 255, 0.1))' }}
+              style={{ background: 'linear-gradient(135deg, rgba(199, 125, 255, 0.15), rgba(255, 160, 122, 0.15))' }}
             />
             <div className="relative">
               <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">✨</div>

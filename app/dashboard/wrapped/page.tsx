@@ -10,6 +10,62 @@ export default function WrappedPage() {
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  const fetchWrappedInsight = async (tracks: any[], artists: any[], genres: string[]) => {
+    try {
+      // Check cache first (24 hours)
+      const cached = localStorage.getItem('wrappedInsightCache');
+      if (cached) {
+        const { insight, timestamp } = JSON.parse(cached);
+        const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000); // 24 hours in ms
+        
+        if (timestamp > twentyFourHoursAgo) {
+          console.log('Using cached wrapped insight');
+          setData((prev: any) => ({ ...prev, aiInsight: insight }));
+          return;
+        }
+      }
+
+      // No valid cache, fetch from AI
+      const aiEnabled = process.env.NEXT_PUBLIC_ENABLE_AI === 'true';
+      
+      if (aiEnabled) {
+        const response = await fetch('/api/generate-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tracks,
+            artists,
+            genres: genres.slice(0, 8),
+            period: 'last month'
+          })
+        });
+        
+        const { insight } = await response.json();
+        setData((prev: any) => ({ ...prev, aiInsight: insight }));
+        
+        // Cache the result (only if not default fallback)
+        if (insight && !insight.includes('unique and wonderful')) {
+          console.log('Caching wrapped insight');
+          localStorage.setItem('wrappedInsightCache', JSON.stringify({
+            insight,
+            timestamp: Date.now()
+          }));
+        }
+      } else {
+        setData((prev: any) => ({ 
+          ...prev, 
+          aiInsight: 'Your music taste this month is unique and wonderful! Keep discovering new sounds.' 
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching wrapped insight:', error);
+      setData((prev: any) => ({ 
+        ...prev, 
+        aiInsight: 'Your music taste this month is unique and wonderful! Keep discovering new sounds.' 
+      }));
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('spotify_access_token');
     
@@ -43,36 +99,8 @@ export default function WrappedPage() {
           aiInsight: 'Generating your personalized insight...'
         });
 
-        // Generate AI insight with detailed data (if enabled)
-        const aiEnabled = process.env.NEXT_PUBLIC_ENABLE_AI === 'true';
-        
-        if (aiEnabled) {
-          try {
-            const response = await fetch('/api/generate-insight', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                tracks: topTracksWithArtists,
-                artists: topArtistsWithGenres,
-                genres: allGenres.slice(0, 8),
-                period: 'last month'
-              })
-            });
-            
-            const { insight } = await response.json();
-            setData((prev: any) => ({ ...prev, aiInsight: insight }));
-          } catch {
-            setData((prev: any) => ({ 
-              ...prev, 
-              aiInsight: 'Your music taste this month is unique and wonderful! Keep discovering new sounds.' 
-            }));
-          }
-        } else {
-          setData((prev: any) => ({ 
-            ...prev, 
-            aiInsight: 'Your music taste this month is unique and wonderful! Keep discovering new sounds.' 
-          }));
-        }
+        // Generate AI insight with caching (24 hours)
+        await fetchWrappedInsight(topTracksWithArtists, topArtistsWithGenres, allGenres);
       })
       .catch(() => router.push('/'))
       .finally(() => setLoading(false));

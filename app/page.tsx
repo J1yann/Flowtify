@@ -34,7 +34,7 @@ export default function Home() {
             }}>
               <div className="text-3xl mb-2">🧾</div>
               <h3 className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Spotify Receipt</h3>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Printable receipt aesthetic</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Printable receipt</p>
             </div>
 
             <div className="p-6 rounded-2xl backdrop-blur-xl" style={{ 

@@ -173,7 +173,7 @@ export default function ReceiptPage() {
           >
             📥 Download Receipt
           </button>
-          {navigator.share && (
+          {typeof navigator !== 'undefined' && navigator.share && (
             <button
               onClick={handleShare}
               className="px-6 py-3 rounded-full font-medium transition-all hover:scale-105"
