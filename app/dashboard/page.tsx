@@ -363,12 +363,11 @@ export default function DashboardPage() {
               style={{ background: 'linear-gradient(135deg, rgba(255, 107, 157, 0.15), rgba(199, 125, 255, 0.15))' }}
             />
             <div className="relative">
-              <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">📊</div>
               <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
                 Weekly Stats
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                View your listening patterns from the past week
+                See what you've been vibing to this week with shareable cards
               </p>
               <div className="mt-4 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent-primary)' }}>
                 Explore <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -389,12 +388,11 @@ export default function DashboardPage() {
               style={{ background: 'linear-gradient(135deg, rgba(255, 160, 122, 0.15), rgba(255, 107, 157, 0.15))' }}
             />
             <div className="relative">
-              <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">🧾</div>
               <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
                 Spotify Receipt
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Generate a printable receipt of your top tracks
+                Your listening history as a cute little receipt you can print or share
               </p>
               <div className="mt-4 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent-primary)' }}>
                 Create <span className="group-hover:translate-x-1 transition-transform">→</span>
@@ -415,12 +413,11 @@ export default function DashboardPage() {
               style={{ background: 'linear-gradient(135deg, rgba(199, 125, 255, 0.15), rgba(255, 160, 122, 0.15))' }}
             />
             <div className="relative">
-              <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">✨</div>
               <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
                 DIY Wrapped
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Create your personalized year-in-review
+                Why wait for December? Make your own year-in-review anytime
               </p>
               <div className="mt-4 flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--accent-primary)' }}>
                 Build <span className="group-hover:translate-x-1 transition-transform">→</span>
