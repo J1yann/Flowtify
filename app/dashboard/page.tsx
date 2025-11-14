@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserProfile } from '@/lib/spotify-api';
+import { getValidToken } from '@/lib/auth-utils';
 import NowPlaying from '@/components/now-playing';
 
 export default function DashboardPage() {
@@ -17,20 +18,21 @@ export default function DashboardPage() {
   const [aiMood, setAiMood] = useState<string>('Analyzing your vibe...');
 
   useEffect(() => {
-    const token = localStorage.getItem('spotify_access_token');
-    
-    if (!token) {
-      router.push('/');
-      return;
-    }
+    const initDashboard = async () => {
+      const token = await getValidToken();
+      
+      if (!token) {
+        router.push('/');
+        return;
+      }
 
-    Promise.all([
-      getUserProfile(token),
-      import('@/lib/spotify-api').then(m => m.getTopTracks(token, 'short_term', 5)),
-      import('@/lib/spotify-api').then(m => m.getTopArtists(token, 'short_term', 5)),
-      import('@/lib/spotify-api').then(m => m.getRecentlyPlayed(token, 50))
-    ])
-      .then(([userData, topTracks, topArtists, recentlyPlayed]) => {
+      Promise.all([
+        getUserProfile(token),
+        import('@/lib/spotify-api').then(m => m.getTopTracks(token, 'short_term', 5)),
+        import('@/lib/spotify-api').then(m => m.getTopArtists(token, 'short_term', 5)),
+        import('@/lib/spotify-api').then(m => m.getRecentlyPlayed(token, 50))
+      ])
+        .then(([userData, topTracks, topArtists, recentlyPlayed]) => {
         // Filter to only today's plays (midnight to midnight)
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
@@ -65,11 +67,14 @@ export default function DashboardPage() {
           uniqueTracks: trackMap.size
         });
 
-        // Fetch AI mood with caching (3 hours)
-        fetchAIMood(todayItems, topArtists.items);
-      })
-      .catch(() => router.push('/'))
-      .finally(() => setLoading(false));
+          // Fetch AI mood with caching (3 hours)
+          fetchAIMood(todayItems, topArtists.items);
+        })
+        .catch(() => router.push('/'))
+        .finally(() => setLoading(false));
+    };
+
+    initDashboard();
   }, [router]);
 
   const fetchAIMood = async (todayItems: any[], topArtists: any[]) => {

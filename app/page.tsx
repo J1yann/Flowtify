@@ -1,6 +1,18 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import AuthButton from '@/components/auth-button';
+import { isAuthenticated } from '@/lib/auth-utils';
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      router.push('/dashboard');
+    }
+  }, [router]);
   return (
     <div className="min-h-screen flex items-center justify-center p-6 md:p-4">
       <div className="max-w-2xl w-full text-center space-y-10 md:space-y-8 py-8 md:py-0">
